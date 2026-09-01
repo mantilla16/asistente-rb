@@ -37,6 +37,13 @@ TOPE_FILAS = int(os.getenv("TABLA_TOPE_FILAS", "50000"))
 # miles de valores distintos no aporta enumerada, y se resume.
 TOPE_DISTINTOS = int(os.getenv("TABLA_TOPE_DISTINTOS", "300"))
 
+# Una columna con pocos valores distintos es una CATEGORÍA -- Nivel,
+# Estado, Tipo -- y de ella no interesa la lista sino CUÁNTAS filas hay
+# de cada una. Es la diferencia entre saber que existe el nivel
+# "Cuenta" y saber que hay 85: la segunda es la pregunta que la gente
+# hace de verdad, y la que el modelo jamás podría contar por su cuenta.
+TOPE_CATEGORIA = int(os.getenv("TABLA_TOPE_CATEGORIA", "40"))
+
 
 # =====================================================================
 # LECTURA
@@ -245,12 +252,37 @@ def perfil_columna(columnas: list[str], filas: list[list[str]],
     else:
         distintos = sorted(set(llenos))
         perfil["distintos"] = len(distintos)
-        if len(distintos) <= TOPE_DISTINTOS:
+        if len(distintos) <= TOPE_CATEGORIA:
+            # Categoría: se cuenta cada valor. Ordenado de mayor a menor,
+            # que es como se lee una distribución.
+            from collections import Counter
+            perfil["conteo"] = sorted(Counter(llenos).items(),
+                                      key=lambda x: (-x[1], x[0]))
+            perfil["valores"] = distintos
+        elif len(distintos) <= TOPE_DISTINTOS:
             perfil["valores"] = distintos
         else:
             perfil["valores"] = distintos[:20]
             perfil["valores_truncados"] = True
     return perfil
+
+
+def _cruce(filas: list[list[str]], j: int, k: int) -> list[tuple[str, int]]:
+    """Cuántos valores distintos de la columna j hay por cada valor de la k.
+
+    Se cuentan valores DISTINTOS y no filas: en un balance la misma cuenta
+    puede repetirse, y lo que se pregunta es cuántas cuentas hay, no cuántas
+    veces aparecen.
+    """
+    from collections import defaultdict
+    grupos: dict[str, set] = defaultdict(set)
+    for f in filas:
+        val = f[j].strip() if j < len(f) else ""
+        cat = f[k].strip() if k < len(f) else ""
+        if val and cat:
+            grupos[cat].add(val)
+    return sorted(((c, len(v)) for c, v in grupos.items()),
+                  key=lambda x: (-x[1], x[0]))
 
 
 def ficha(doc_ids: list[str]) -> str:
@@ -271,17 +303,35 @@ def ficha(doc_ids: list[str]) -> str:
                     'no un total.')
         lineas = [cab, "Columnas y su contenido, calculado sobre TODAS las filas:"]
 
-        for j in range(len(cols)):
-            p = perfil_columna(cols, filas, j)
+        perfiles = [perfil_columna(cols, filas, j) for j in range(len(cols))]
+
+        # La categoría principal es la de menos valores distintos con más de
+        # uno: en un balance es "Nivel", y contra ella se cruzan las columnas
+        # de muchos valores. Sin ese cruce, "793 códigos" no responde
+        # "cuántas cuentas hay" -- que es lo que de verdad se pregunta.
+        cats = [p for p in perfiles if p.get("conteo") and p["distintos"] > 1]
+        principal = min(cats, key=lambda p: p["distintos"]) if cats else None
+
+        for j, p in enumerate(perfiles):
             if p["numerica"]:
                 lineas.append(
                     f'· {p["columna"]}: numérica · {p["con_valor"]} valores · '
                     f'suma {p["suma"]} · mínimo {p["minimo"]} · máximo {p["maximo"]}')
-            elif p.get("valores_truncados"):
+            elif p.get("conteo"):
+                detalle = ", ".join(f"{v} ({n})" for v, n in p["conteo"])
                 lineas.append(
-                    f'· {p["columna"]}: texto · {p["distintos"]} valores '
-                    f'distintos (demasiados para listar; ejemplos: '
-                    f'{", ".join(p["valores"])})')
+                    f'· {p["columna"]}: {p["distintos"]} valores distintos, '
+                    f'con el número EXACTO de filas de cada uno: {detalle}')
+            elif p.get("valores_truncados"):
+                linea = (f'· {p["columna"]}: {p["distintos"]} valores distintos, '
+                         'demasiados para listarlos todos aquí (ejemplos: '
+                         f'{", ".join(p["valores"][:12])})')
+                if principal:
+                    cruce = _cruce(filas, j, cols.index(principal["columna"]))
+                    linea += ('. Cuántos hay de cada '
+                              f'{principal["columna"]}: '
+                              + ", ".join(f"{v} ({n})" for v, n in cruce))
+                lineas.append(linea)
             else:
                 que = ("identificadores" if p["identificador"]
                        else "valores distintos")
