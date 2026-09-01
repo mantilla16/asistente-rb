@@ -136,12 +136,17 @@ export default function Documentos({ resaltar }) {
                             className="btn btn-contorno btn-chico">
                       {d.compartido ? "Compartido" : "Privado"}
                     </button>
-                    {d.estado === "ERROR" && (
-                      <Boton className="btn-chico"
-                             onClick={() => api.reprocesar(d.id).then(cargar)}>
-                        Reintentar
-                      </Boton>
-                    )}
+                    {/* Disponible siempre, no solo en error: cuando cambia
+                        la forma de procesar -- el troceado, el modelo de
+                        embeddings, la lectura de tablas -- los documentos ya
+                        cargados se quedan con la anterior, y sin este botón
+                        la única salida es borrarlos y volverlos a subir. */}
+                    <Boton className="btn-chico"
+                           onClick={() => api.reprocesar(d.id).then(cargar)}
+                           title="Vuelve a extraer, trocear y vectorizar con la
+                                  configuración actual">
+                      {d.estado === "ERROR" ? "Reintentar" : "Reprocesar"}
+                    </Boton>
                     <button onClick={() => borrar(d)}
                             className="btn-texto text-xs hover:text-rojo">
                       Eliminar
