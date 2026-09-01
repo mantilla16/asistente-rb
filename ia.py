@@ -41,6 +41,11 @@ class ModeloOcupado(Exception):
     """Alguien más está generando. No es un error del sistema: es una cola."""
 
 
+def ocupado() -> bool:
+    """¿Hay un turno en curso? Para poder rechazar ANTES de guardar nada."""
+    return _turno.locked()
+
+
 def config() -> dict:
     return {"url": URL, "modelo_chat": MODELO_CHAT,
             "modelo_embed": MODELO_EMBED, "contexto": CONTEXTO,

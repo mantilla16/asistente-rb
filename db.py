@@ -347,6 +347,10 @@ def borrar_conversacion(conv_id: str) -> None:
     ejecutar("DELETE FROM app.conversacion WHERE id=%s", (conv_id,))
 
 
+def borrar_mensaje(mensaje_id: int) -> None:
+    ejecutar("DELETE FROM app.mensaje WHERE id=%s", (mensaje_id,))
+
+
 def mensajes_de(conv_id: str, limite: int = 500) -> list[dict]:
     return varios(
         """SELECT id, rol, texto, citas, modelo, ms, tokens_salida, creado_en

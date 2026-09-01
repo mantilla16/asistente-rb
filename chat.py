@@ -50,6 +50,14 @@ Reglas que no puedes romper:
 5. No repitas cifras de memoria: transcríbelas del fragmento. Una cifra mal copiada en un contexto contable es un error caro.
 6. Sé breve. Responde lo que se preguntó y para. Nada de resúmenes de lo que acabas de decir, ni ofrecimientos de ayuda adicional, ni repetir la pregunta. Si hacen falta más detalles, el usuario los pide."""
 
+INTERRUMPIDA = (
+    "\n\n_[Respuesta interrumpida: se cerró la conexión antes de que "
+    "el modelo terminara. Lo anterior es lo que alcanzó a generar.]_")
+
+_OCUPADO = ("El modelo está atendiendo otra consulta. En este servidor se "
+            "genera una respuesta a la vez; espere a que termine y vuelva a "
+            "enviar. Su pregunta no se guardó.")
+
 SIN_MATERIAL = """No hay material consultable para esta pregunta. Responde con tu conocimiento general y di explícitamente, en la primera línea, que no estás consultando ningún documento cargado."""
 
 
@@ -99,7 +107,14 @@ def responder(usuario_id: str, conv_id: str, pregunta: str,
         yield {"tipo": "error", "texto": "La conversación no existe."}
         return
 
-    db.guardar_mensaje(conv_id, "usuario", pregunta)
+    # Se rechaza ANTES de guardar. Si no, cada clic impaciente deja una
+    # pregunta huérfana en la conversación: fue justo lo que pasó al probar,
+    # tres veces el mismo mensaje sin una sola respuesta debajo.
+    if ia.ocupado():
+        yield {"tipo": "ocupado", "texto": _OCUPADO}
+        return
+
+    mensaje_usuario = db.guardar_mensaje(conv_id, "usuario", pregunta)
     mensajes, rastro = armar(usuario_id, conv, pregunta)
 
     citas = [{k: f[k] for k in ("n", "documento_id", "documento", "pagina")}
@@ -114,37 +129,44 @@ def responder(usuario_id: str, conv_id: str, pregunta: str,
 
     partes: list[str] = []
     ms = tokens = None
+    completo = False
     try:
-        for e in ia.conversar(mensajes, modelo, temperatura, usuario):
-            if e["tipo"] == "texto":
-                partes.append(e["texto"])
-                yield e
-            elif e["tipo"] == "fin":
-                ms, tokens, modelo = e["ms"], e["tokens"], e["modelo"]
-            elif e["tipo"] == "error":
-                yield e
-    except ia.ModeloOcupado as e:
-        yield {"tipo": "ocupado",
-               "texto": (f"El modelo está atendiendo otra consulta ({e}). "
-                         "En este servidor se genera una respuesta a la vez; "
-                         "vuelva a enviar en un momento.")}
-        return
+        try:
+            for e in ia.conversar(mensajes, modelo, temperatura, usuario):
+                if e["tipo"] == "texto":
+                    partes.append(e["texto"])
+                    yield e
+                elif e["tipo"] == "fin":
+                    ms, tokens, modelo = e["ms"], e["tokens"], e["modelo"]
+                    completo = True
+                elif e["tipo"] == "error":
+                    yield e
+        except ia.ModeloOcupado:
+            # Carrera perdida contra otro turno: se deshace la pregunta para
+            # no dejarla colgando sin respuesta.
+            db.borrar_mensaje(mensaje_usuario["id"])
+            yield {"tipo": "ocupado", "texto": _OCUPADO}
+            return
+    finally:
+        # Va en `finally` porque si el usuario recarga la página, el
+        # generador se cierra aquí mismo y sin esto la respuesta se perdía
+        # entera: quedaba la pregunta sola y nada debajo. Lo generado hasta
+        # ese punto es trabajo real de este servidor -- minutos de CPU -- y
+        # tirarlo por un F5 no tiene defensa.
+        texto = "".join(partes).strip()
+        if texto:
+            if not completo:
+                texto += INTERRUMPIDA
+            db.guardar_mensaje(conv_id, "asistente", texto, citas,
+                               modelo, ms, tokens)
+            if conv["titulo"] == "Nueva conversación":
+                db.actualizar_conversacion(conv_id, titulo=_titular(pregunta))
 
-    texto = "".join(partes).strip()
     if not texto:
         yield {"tipo": "error", "texto": "El modelo no devolvió texto."}
         return
 
-    guardado = db.guardar_mensaje(conv_id, "asistente", texto, citas,
-                                  modelo, ms, tokens)
-
-    # El título sale del primer intercambio, no de la primera línea de la
-    # pregunta: una lista de conversaciones tituladas «Hola» no sirve.
-    if conv["titulo"] == "Nueva conversación":
-        db.actualizar_conversacion(conv_id, titulo=_titular(pregunta))
-
-    yield {"tipo": "fin", "mensaje_id": guardado["id"], "ms": ms,
-           "tokens": tokens, "modelo": modelo}
+    yield {"tipo": "fin", "ms": ms, "tokens": tokens, "modelo": modelo}
 
 
 def _titular(pregunta: str) -> str:
