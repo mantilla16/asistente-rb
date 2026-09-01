@@ -40,12 +40,35 @@ function ConCitas({ texto, citas, onCita }) {
   );
 }
 
-function Fuentes({ citas, onCita }) {
+/** Solo los fragmentos que la respuesta CITA de verdad.
+ *
+ *  Antes se listaban los ocho recuperados, citados o no. Una respuesta que
+ *  decía "eso no está en los documentos" aparecía debajo de ocho fuentes,
+ *  como si se apoyara en ellas. Eso es exactamente lo que este sistema
+ *  existe para evitar: la apariencia de respaldo donde no lo hay.
+ *
+ *  Lo consultado pero no citado se declara aparte, en una línea, porque el
+ *  usuario tiene derecho a saber sobre qué material se respondió -- pero no
+ *  bajo el rótulo de "fuentes". */
+function Fuentes({ texto, citas, onCita }) {
   if (!citas?.length) return null;
+  const usados = new Set(
+    [...String(texto).matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])));
+  const citadas = citas.filter((c) => usados.has(c.n));
+
+  if (!citadas.length) {
+    return (
+      <p className="mt-2 text-[11px] text-tinta-suave">
+        La respuesta no cita ningún fragmento. Se consultaron{" "}
+        {citas.length} y ninguno sustenta lo dicho.
+      </p>
+    );
+  }
+
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
       <span className="rotulo">Fuentes</span>
-      {citas.map((c) => (
+      {citadas.map((c) => (
         <button key={c.n} onClick={() => onCita(c)}
                 className="rounded-full border border-regla bg-papel px-2 py-0.5
                            text-[11px] text-tinta-media hover:border-cian hover:text-cian-hondo">
@@ -53,6 +76,12 @@ function Fuentes({ citas, onCita }) {
           {c.pagina ? ` · p. ${c.pagina}` : ""}
         </button>
       ))}
+      {citadas.length < citas.length && (
+        <span className="text-[11px] text-tinta-suave">
+          · se consultaron {citas.length - citadas.length} fragmento(s) más que
+          la respuesta no citó
+        </span>
+      )}
     </div>
   );
 }
@@ -244,7 +273,8 @@ export default function Chat({ agentes, onIrA }) {
                         ? m.texto
                         : <ConCitas texto={m.texto} citas={m.citas} onCita={verCita} />}
                     </p>
-                    {m.rol !== "usuario" && <Fuentes citas={m.citas} onCita={verCita} />}
+                    {m.rol !== "usuario" &&
+                      <Fuentes texto={m.texto} citas={m.citas} onCita={verCita} />}
                     <p className={`mt-1 text-[10px] ${m.rol === "usuario"
                         ? "text-white/60" : "text-tinta-suave"}`}>
                       {hora(m.creado_en)}

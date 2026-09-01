@@ -366,7 +366,7 @@ class AgenteEntrada(BaseModel):
     instrucciones: str = ""
     modelo: str | None = None
     temperatura: float = 0.3
-    fragmentos: int = 8
+    fragmentos: int = 4
     compartido: bool = False
     documentos: list[str] = []
 

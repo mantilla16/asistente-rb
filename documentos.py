@@ -29,6 +29,14 @@ ARCHIVOS = Path(os.getenv("ARCHIVOS", "./archivos"))
 TAMANO = int(os.getenv("FRAGMENTO_TAMANO", "1200"))
 SOLAPE = int(os.getenv("FRAGMENTO_SOLAPE", "150"))
 
+# Las tablas de cifras se trocean más corto. La misma cantidad de
+# caracteres cuesta el triple de tokens cuando son números -- cada cifra se
+# parte en varios -- y lo que le cuesta tiempo al modelo son los tokens, no
+# los caracteres. Medido en el servidor de oficina: ocho fragmentos de un
+# balance en Excel tardaron 288 segundos solo en leerse.
+TAMANO_TABLA = int(os.getenv("FRAGMENTO_TAMANO_TABLA", "500"))
+TIPOS_TABLA = {"Excel", "CSV"}
+
 TIPOS = {".pdf": "PDF", ".docx": "Word", ".xlsx": "Excel", ".xlsm": "Excel",
          ".txt": "Texto", ".md": "Markdown", ".csv": "CSV"}
 
@@ -117,7 +125,8 @@ def extraer(ruta: Path, tipo: str) -> list[tuple[int | None, str]]:
 # TROCEADO
 # =====================================================================
 
-def trocear(bloques: list[tuple[int | None, str]]) -> list[dict]:
+def trocear(bloques: list[tuple[int | None, str]],
+            tipo: str | None = None) -> list[dict]:
     """Corta el texto en fragmentos que se entiendan solos.
 
     Se corta en el límite de párrafo más cercano y no en el carácter exacto:
@@ -128,6 +137,7 @@ def trocear(bloques: list[tuple[int | None, str]]) -> list[dict]:
     caballo entre dos fragmentos; repetir el final del anterior al principio
     del siguiente evita perderla justo en la costura.
     """
+    tope = TAMANO_TABLA if tipo in TIPOS_TABLA else TAMANO
     fragmentos: list[dict] = []
     for pagina, texto in bloques:
         texto = re.sub(r"[ \t]+", " ", texto).strip()
@@ -137,7 +147,7 @@ def trocear(bloques: list[tuple[int | None, str]]) -> list[dict]:
 
         actual = ""
         for p in parrafos:
-            if len(actual) + len(p) + 2 <= TAMANO:
+            if len(actual) + len(p) + 2 <= tope:
                 actual = f"{actual}\n\n{p}" if actual else p
                 continue
             if actual:
@@ -145,12 +155,12 @@ def trocear(bloques: list[tuple[int | None, str]]) -> list[dict]:
                 actual = actual[-SOLAPE:] if SOLAPE else ""
             # Un párrafo más largo que el tope se corta por longitud: no hay
             # límite natural donde partirlo.
-            while len(p) > TAMANO:
+            while len(p) > tope:
                 # `rfind` devuelve -1 cuando no hay espacio, y -1 es verdadero
                 # en Python: un `or` aquí dejaría pasar el párrafo entero.
-                corte = p.rfind(" ", 0, TAMANO)
+                corte = p.rfind(" ", 0, tope)
                 if corte <= 0:
-                    corte = TAMANO
+                    corte = tope
                 fragmentos.append({"pagina": pagina,
                                    "texto": (actual + " " + p[:corte]).strip()})
                 p, actual = p[corte:].strip(), ""
@@ -196,7 +206,7 @@ def procesar(doc_id: str) -> dict:
         caracteres = sum(len(t) for _, t in bloques)
         paginas = sum(1 for p, _ in bloques if p is not None) or None
 
-        fragmentos = trocear(bloques)
+        fragmentos = trocear(bloques, d["tipo"])
         if not fragmentos:
             raise NoSePudoLeer("El archivo no produjo ningún fragmento de texto.")
 

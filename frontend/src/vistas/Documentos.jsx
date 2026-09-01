@@ -86,6 +86,20 @@ export default function Documentos({ resaltar }) {
 
       {error && <div className="mt-5"><Aviso tono="error">{error}</Aviso></div>}
 
+      {docs.some((d) => d.tipo === "Excel" || d.tipo === "CSV") && (
+        <div className="mt-5">
+          <Aviso tono="alerta" titulo="Sobre las hojas de cálculo">
+            Una tabla de cifras se consulta mal por aquí, y conviene saberlo
+            antes de perder tiempo: el buscador encuentra por significado, y una
+            fila de saldos no tiene significado que capturar. Además un modelo
+            pequeño no suma ni cruza columnas de forma confiable. Para balances
+            y movimientos está Analítica PUC, que los lee con un motor que
+            calcula de verdad. Este asistente rinde con texto: contratos,
+            normas, actas, manuales, informes.
+          </Aviso>
+        </div>
+      )}
+
       <div className="mt-6 space-y-2">
         {docs.length === 0 && !error && (
           <Vacio titulo="Todavía no hay documentos">

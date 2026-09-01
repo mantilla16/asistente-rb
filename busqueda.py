@@ -70,7 +70,7 @@ def _coseno(pregunta: list[float], matriz: np.ndarray) -> np.ndarray:
 
 
 def buscar(usuario_id: str, consulta: str, agente: dict | None = None,
-           cuantos: int = 8) -> dict:
+           cuantos: int = 4) -> dict:
     """Los fragmentos más pertinentes, con el rastro de cómo se eligieron."""
     doc_ids, criterio = alcance(usuario_id, agente)
     aviso = None

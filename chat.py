@@ -32,6 +32,13 @@ import ia
 # conversaciones largas rara vez dependen de lo que se dijo al principio.
 TURNOS = 6
 
+# Cuántos fragmentos por consulta cuando no hay agente. Bajó de 8 a 4
+# después de medir en el servidor de oficina: leer el contexto costaba
+# 288 segundos con ocho fragmentos de una tabla. Lo que le cuesta tiempo
+# al modelo son los tokens del prompt, y más contexto tapa la señal tanto
+# como la aporta.
+FRAGMENTOS = 4
+
 SISTEMA = """Eres el asistente interno de Russell Bedford, una firma de auditoría y revisoría fiscal en Colombia. Respondes en español, con precisión y sin rodeos.
 
 Reglas que no puedes romper:
@@ -40,7 +47,8 @@ Reglas que no puedes romper:
 2. Si el material no contiene la respuesta, dilo con esas palabras: no la deduzcas, no la completes con lo que sabes en general, no la inventes. Decir "eso no está en los documentos que consulté" es una respuesta correcta y útil.
 3. No cites un fragmento que no usaste.
 4. Si el usuario pregunta algo que no depende de los documentos, respóndelo con tu conocimiento y avisa que no viene del material cargado.
-5. No repitas cifras de memoria: transcríbelas del fragmento. Una cifra mal copiada en un contexto contable es un error caro."""
+5. No repitas cifras de memoria: transcríbelas del fragmento. Una cifra mal copiada en un contexto contable es un error caro.
+6. Sé breve. Responde lo que se preguntó y para. Nada de resúmenes de lo que acabas de decir, ni ofrecimientos de ayuda adicional, ni repetir la pregunta. Si hacen falta más detalles, el usuario los pide."""
 
 SIN_MATERIAL = """No hay material consultable para esta pregunta. Responde con tu conocimiento general y di explícitamente, en la primera línea, que no estás consultando ningún documento cargado."""
 
@@ -55,7 +63,7 @@ def _historial(conv_id: str) -> list[dict]:
 def armar(usuario_id: str, conv: dict, pregunta: str) -> tuple[list[dict], dict]:
     """Los mensajes para el modelo y el rastro de cómo se armaron."""
     agente = db.agente(conv["agente_id"]) if conv.get("agente_id") else None
-    cuantos = int(agente["fragmentos"]) if agente else 8
+    cuantos = int(agente["fragmentos"]) if agente else FRAGMENTOS
     hallado = busqueda.buscar(usuario_id, pregunta, agente, cuantos)
 
     sistema = SISTEMA

@@ -147,7 +147,7 @@ CREATE TABLE app.agente (
   instrucciones  text NOT NULL DEFAULT '',
   modelo         text,
   temperatura    numeric(3,2) NOT NULL DEFAULT 0.30,
-  fragmentos     smallint NOT NULL DEFAULT 8,
+  fragmentos     smallint NOT NULL DEFAULT 4,
   compartido     boolean NOT NULL DEFAULT false,
   activo         boolean NOT NULL DEFAULT true,
   creado_en      timestamptz NOT NULL DEFAULT now(),
@@ -159,7 +159,9 @@ COMMENT ON COLUMN app.agente.temperatura IS
   'creatividad. Se sube a mano cuando el agente es para redactar.';
 COMMENT ON COLUMN app.agente.fragmentos IS
   'Cuántos fragmentos se le ponen delante al modelo. Más contexto no es '
-  'mejor: en CPU cada fragmento cuesta tiempo, y el ruido tapa la señal.';
+  'mejor: en CPU lo que cuesta tiempo son los tokens del prompt, y el ruido '
+  'tapa la señal tanto como la aporta. Medido: ocho fragmentos de una tabla '
+  'de cifras tardaron 288 segundos solo en leerse.';
 
 CREATE INDEX ix_agente_dueno ON app.agente (propietario_id, creado_en DESC);
 
