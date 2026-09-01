@@ -56,11 +56,18 @@ function Fuentes({ texto, citas, onCita }) {
     [...String(texto).matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])));
   const citadas = citas.filter((c) => usados.has(c.n));
 
+  // En ámbar y no en gris pequeño: este es el aviso que más importa de toda
+  // la pantalla. Una respuesta sin citas puede estar inventada de principio a
+  // fin, y suena igual de segura que una correcta. Si se pierde entre el
+  // texto fino, no sirve de nada haberla detectado.
   if (!citadas.length) {
     return (
-      <p className="mt-2 text-[11px] text-tinta-suave">
-        La respuesta no cita ningún fragmento. Se consultaron{" "}
-        {citas.length} y ninguno sustenta lo dicho.
+      <p className="mt-2 rounded-[9px] border-l-[3px] border-ambar bg-ambar-tenue
+                    px-3 py-2 text-xs leading-relaxed text-ambar">
+        <strong>Sin respaldo documental.</strong> La respuesta no cita ningún
+        fragmento: se consultaron {citas.length} y ninguno sustenta lo dicho.
+        Trátela como una opinión del modelo, no como algo leído en sus
+        documentos.
       </p>
     );
   }
