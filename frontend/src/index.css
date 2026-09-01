@@ -1,0 +1,192 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------
+   SISTEMA DE DISEÑO — Asistente RB
+
+   Hereda la marca Russell Bedford de analitica-puc, pero cambia de
+   acento a propósito. Allí manda el navy: es una herramienta de
+   auditoría, sobria, de cifras. Aquí manda el cian → morado del anillo
+   del logo, porque es otra cosa y el usuario tiene que saberlo antes de
+   leer una sola palabra. Mismo Montserrat, misma familia de color,
+   distinta temperatura.
+
+   Las dos únicas señales que NO se decoran son las de estado: verde
+   verificado, rojo excepción. Un documento que falló al procesarse no
+   puede salir en morado corporativo porque quede bonito.
+   --------------------------------------------------------------- */
+@theme {
+  --color-papel:       #f2f2f8;
+  --color-papel-hondo: #e8e8f3;
+  --color-papel-alto:  #ffffff;
+
+  --color-tinta:       #14143a;
+  --color-tinta-media: #4a4a70;
+  --color-tinta-suave: #85859f;
+
+  --color-regla:       #dedeeb;
+  --color-regla-fina:  #eeeef6;
+
+  /* Marca, con el acento invertido respecto de analitica-puc */
+  --color-marca:       #1b1a5e;
+  --color-cian:        #00bce4;
+  --color-cian-hondo:  #0093b3;
+  --color-cian-tenue:  #e2f7fc;
+  --color-morado:      #92278f;
+  --color-morado-hondo:#7a1f78;
+  --color-morado-tenue:#f7e9f7;
+  --color-naranja:     #ef8a00;
+
+  --color-verde:       #0d7a57;
+  --color-verde-tenue: #ddf3ea;
+  --color-rojo:        #c0392b;
+  --color-rojo-tenue:  #fdeae7;
+  --color-ambar:       #b56a00;
+  --color-ambar-tenue: #fdf0da;
+
+  --font-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root {
+  --sombra-baja:  0 1px 2px rgb(15 30 40 / 0.05), 0 1px 3px rgb(15 30 40 / 0.04);
+  --sombra-media: 0 2px 4px rgb(15 30 40 / 0.05), 0 6px 16px rgb(15 30 40 / 0.07);
+  --sombra-alta:  0 8px 32px rgb(15 30 40 / 0.16);
+  --radio: 14px;
+  --radio-chico: 9px;
+}
+
+html {
+  background: var(--color-papel);
+  color: var(--color-tinta);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+body { margin: 0; }
+h1, h2, h3 { letter-spacing: -0.02em; }
+
+/* La firma del producto: el degradado del anillo, en diagonal. */
+.marca-fondo {
+  background:
+    radial-gradient(760px 520px at 14% 10%, rgb(0 188 228 / 0.30), transparent 60%),
+    radial-gradient(620px 520px at 86% 84%, rgb(146 39 143 / 0.34), transparent 62%),
+    linear-gradient(150deg, #241f66 0%, #1b1a5e 46%, #0d0d30 100%);
+}
+.cinta-marca {
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-cian) 0%,
+    var(--color-naranja) 34%, var(--color-morado) 67%, var(--color-cian) 100%);
+}
+.texto-marca {
+  background: linear-gradient(96deg, var(--color-cian-hondo), var(--color-morado));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.rotulo {
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--color-tinta-suave);
+}
+.cifra { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.panel {
+  background: var(--color-papel-alto);
+  border: 1px solid var(--color-regla);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra-baja);
+}
+.panel-punteado { border-style: dashed; background: transparent; }
+
+input[type="text"], input[type="password"], input[type="number"],
+input[type="email"], select, textarea {
+  border-radius: var(--radio-chico);
+  border: 1px solid var(--color-regla);
+  background: var(--color-papel-alto);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none; border-color: var(--color-cian);
+  box-shadow: 0 0 0 3px rgb(0 188 228 / .22);
+}
+input:disabled, textarea:disabled { background: var(--color-papel-hondo); }
+input[type="checkbox"] { width: 1rem; height: 1rem; accent-color: var(--color-morado); cursor: pointer; }
+
+button { transition: background-color .15s, color .15s, box-shadow .15s, opacity .15s; }
+.btn {
+  display: inline-flex; align-items: center; gap: .5rem;
+  border-radius: var(--radio-chico); padding: .55rem 1.1rem;
+  font-size: .875rem; font-weight: 600;
+}
+.btn-principal {
+  background: linear-gradient(100deg, var(--color-morado), var(--color-cian-hondo));
+  color: #fff; box-shadow: var(--sombra-baja);
+}
+.btn-principal:hover:not(:disabled) { box-shadow: var(--sombra-media); filter: brightness(1.07); }
+.btn-contorno {
+  background: var(--color-papel-alto);
+  border: 1px solid var(--color-regla); color: var(--color-tinta);
+}
+.btn-contorno:hover:not(:disabled) { border-color: var(--color-cian); color: var(--color-cian-hondo); }
+.btn-texto { color: var(--color-tinta-media); padding: .35rem .2rem; }
+.btn-texto:hover:not(:disabled) { color: var(--color-morado); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-chico { padding: .35rem .8rem; font-size: .75rem; }
+
+.pestana {
+  border-radius: 999px; padding: .4rem .9rem;
+  font-size: .875rem; font-weight: 500; color: var(--color-tinta-suave);
+}
+.pestana:hover { color: var(--color-tinta); background: var(--color-papel-hondo); }
+.pestana-activa {
+  background: linear-gradient(100deg, var(--color-morado), var(--color-cian-hondo));
+  color: #fff; font-weight: 600;
+}
+
+.chip {
+  display: inline-flex; align-items: center; gap: .3rem;
+  border-radius: 999px; padding: .15rem .6rem;
+  font-size: .6875rem; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.chip-verde  { background: var(--color-verde-tenue);  color: var(--color-verde); }
+.chip-rojo   { background: var(--color-rojo-tenue);   color: var(--color-rojo); }
+.chip-ambar  { background: var(--color-ambar-tenue);  color: var(--color-ambar); }
+.chip-gris   { background: var(--color-papel-hondo);  color: var(--color-tinta-media); }
+.chip-cian   { background: var(--color-cian-tenue);   color: var(--color-cian-hondo); }
+.chip-morado { background: var(--color-morado-tenue); color: var(--color-morado); }
+
+/* Burbujas de la conversación */
+.burbuja-usuario {
+  background: linear-gradient(100deg, var(--color-morado), var(--color-cian-hondo));
+  color: #fff; border-radius: 16px 16px 4px 16px;
+}
+.burbuja-asistente {
+  background: var(--color-papel-alto);
+  border: 1px solid var(--color-regla);
+  border-radius: 16px 16px 16px 4px;
+}
+
+/* La cita [1] dentro de la respuesta: se ve que es un ancla, no un número */
+.cita {
+  display: inline-block; min-width: 1.15rem; text-align: center;
+  border-radius: 5px; padding: 0 .25rem; margin: 0 .1rem;
+  background: var(--color-cian-tenue); color: var(--color-cian-hondo);
+  font-family: var(--font-mono); font-size: .7rem; font-weight: 600;
+  vertical-align: baseline;
+}
+
+/* El cursor que parpadea mientras el modelo escribe. En CPU la respuesta
+   tarda; sin esta señal el usuario cree que se colgó. */
+@keyframes latir { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+.escribiendo::after {
+  content: "▍"; margin-left: 1px; animation: latir 1s ease-in-out infinite;
+  color: var(--color-morado);
+}
+@keyframes girar { to { transform: rotate(360deg) } }
+.girando { animation: girar 1.2s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; }
+}
+
+*:focus-visible { outline: 2px solid var(--color-cian); outline-offset: 2px; border-radius: 4px; }
