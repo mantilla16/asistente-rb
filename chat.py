@@ -21,6 +21,7 @@ descubre tarde y con el trabajo ya hecho encima.
 """
 from __future__ import annotations
 
+import re
 from typing import Iterator
 
 import busqueda
@@ -58,6 +59,34 @@ _OCUPADO = ("El modelo está atendiendo otra consulta. En este servidor se "
             "genera una respuesta a la vez; espere a que termine y vuelva a "
             "enviar. Su pregunta no se guardó.")
 
+# Preguntas que piden contar, totalizar o enumerar. El modelo ve una MUESTRA
+# de fragmentos -- cuatro de setecientos -- así que no puede responderlas, y
+# el problema es que las responde igual: dice "hay 3 cuentas" cuando hay 85,
+# con el mismo aplomo y las mismas citas que cuando acierta.
+#
+# Se detecta por palabra porque es barato y no se equivoca hacia el lado
+# peligroso: en el peor caso avisa de más en una pregunta que sí podía
+# contestar, y eso no rompe nada.
+ENUMERATIVA = re.compile(
+    r"\b(cu[aá]nt[oa]s?|cuantos?|cuantas?|tod[oa]s?|list[ae]|listado|"
+    r"enumera|enumere|total(es)?|totalice|sum[ae]|sume|sumatoria|"
+    r"cuent[ae]|conteo|promedio|m[aá]ximo|m[ií]nimo|complet[oa])\b",
+    re.IGNORECASE)
+
+# Pedir un conjunto en plural también es enumerativo, aunque no lleve
+# ninguna de las palabras de arriba: "dame las cuentas", "muéstrame los
+# artículos". No se incluye "cuentas" suelta en el patrón anterior porque
+# en una firma de auditoría aparece en casi toda pregunta, y un aviso que
+# salta siempre deja de leerse.
+PIDE_CONJUNTO = re.compile(
+    r"\b(dame|dime|muestra|mu[eé]strame|indica|ind[ií]came|trae)"
+    r"\s+(las|los|todas|todos)\b",
+    re.IGNORECASE)
+
+AVISO_MUESTRA = """AVISO SOBRE ESTA PREGUNTA: piden contar, totalizar o enumerar. Tú solo ves una MUESTRA de fragmentos, no el documento completo. No puedes contar, sumar ni listar de forma exhaustiva.
+
+Empieza tu respuesta diciendo que solo puedes hablar de los fragmentos que tienes delante y que el número real casi con seguridad es mayor. Luego di qué encontraste EN ESOS FRAGMENTOS, dejando claro que es una muestra. Nunca des una cifra como si fuera el total."""
+
 SIN_MATERIAL = """No hay material consultable para esta pregunta. Responde con tu conocimiento general y di explícitamente, en la primera línea, que no estás consultando ningún documento cargado."""
 
 
@@ -89,9 +118,15 @@ def armar(usuario_id: str, conv: dict, pregunta: str) -> tuple[list[dict], dict]
     else:
         mensajes.append({"role": "system", "content": SIN_MATERIAL})
 
+    # El aviso va al final, pegado a la pregunta: un modelo pequeño atiende
+    # mucho mejor a lo que tiene cerca del final que a lo que se dijo arriba.
+    muestra = bool(hallado["fragmentos"]) and bool((ENUMERATIVA.search(pregunta) or PIDE_CONJUNTO.search(pregunta)))
+    if muestra:
+        mensajes.append({"role": "system", "content": AVISO_MUESTRA})
+
     mensajes += _historial(conv["id"])
     mensajes.append({"role": "user", "content": pregunta})
-    return mensajes, {**hallado, "agente": agente}
+    return mensajes, {**hallado, "agente": agente, "muestra": muestra}
 
 
 def responder(usuario_id: str, conv_id: str, pregunta: str,
@@ -121,7 +156,7 @@ def responder(usuario_id: str, conv_id: str, pregunta: str,
              for f in rastro["fragmentos"]]
     yield {"tipo": "contexto", "citas": citas, "modo": rastro["modo"],
            "criterio": rastro["criterio"], "documentos": rastro["documentos"],
-           "aviso": rastro["aviso"]}
+           "muestra": rastro.get("muestra"), "aviso": rastro["aviso"]}
 
     agente = rastro["agente"]
     modelo = (agente or {}).get("modelo") or ia.MODELO_CHAT

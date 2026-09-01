@@ -336,6 +336,15 @@ export default function Chat({ agentes, onIrA }) {
                 </div>
               )}
 
+              {nota?.muestra && (
+                <Aviso tono="alerta" titulo="Esta pregunta pide contar o enumerar">
+                  El asistente solo ve unos pocos fragmentos del documento,
+                  nunca el documento entero. No puede contar, sumar ni listar
+                  de forma exhaustiva: lo que responda es lo que salió en esa
+                  muestra, y el número real casi con seguridad es mayor. Para
+                  contar o totalizar un balance está Analítica PUC.
+                </Aviso>
+              )}
               {nota && (nota.aviso || nota.documentos === 0) && (
                 <Aviso tono="alerta" titulo="Sobre esta búsqueda">
                   {nota.aviso ?? "No hay documentos procesados en el alcance."}
