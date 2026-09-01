@@ -20,6 +20,7 @@ from pathlib import Path
 
 import db
 import ia
+import tabla
 
 ARCHIVOS = Path(os.getenv("ARCHIVOS", "./archivos"))
 
@@ -202,6 +203,14 @@ def procesar(doc_id: str) -> dict:
 
     try:
         db.actualizar_documento(doc_id, estado="EXTRAYENDO", error=None)
+
+        # Una hoja de cálculo se guarda ADEMÁS con su forma de tabla. El
+        # texto sirve para encontrarla por parecido; la tabla sirve para
+        # contar, listar y sumar sin muestrear -- que es lo que un modelo
+        # nunca va a poder hacer sobre fragmentos.
+        if d["tipo"] in ("Excel", "CSV"):
+            tabla.guardar(doc_id, tabla.leer(Path(d["archivo"]), d["tipo"]))
+
         bloques = extraer(Path(d["archivo"]), d["tipo"])
         caracteres = sum(len(t) for _, t in bloques)
         paginas = sum(1 for p, _ in bloques if p is not None) or None

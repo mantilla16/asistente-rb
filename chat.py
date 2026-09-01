@@ -27,6 +27,7 @@ from typing import Iterator
 import busqueda
 import db
 import ia
+import tabla
 
 # Cuántos turnos previos se arrastran. Es un tope de contexto, no de memoria:
 # en CPU cada token del historial se paga en tiempo de respuesta, y las
@@ -110,6 +111,19 @@ def armar(usuario_id: str, conv: dict, pregunta: str) -> tuple[list[dict], dict]
                     + agente["instrucciones"].strip())
 
     mensajes = [{"role": "system", "content": sistema}]
+
+    # Las hojas de cálculo del alcance entran CALCULADAS, no muestreadas:
+    # cuántas filas hay, qué valores tiene cada columna y cuánto suman. Es
+    # la diferencia entre responder "hay 3 cuentas" y responder "hay 85".
+    doc_ids, _ = busqueda.alcance(usuario_id, agente)
+    ficha = tabla.ficha(doc_ids) if tabla.hay_tablas(doc_ids) else ""
+    if ficha:
+        mensajes.append({"role": "system", "content": (
+            "DATOS DE LAS HOJAS DE CÁLCULO (calculados sobre el archivo "
+            "COMPLETO, no sobre una muestra). Para contar, listar valores o "
+            "totalizar, usa ESTO y no los fragmentos de texto: aquí los "
+            "números son exactos." + chr(10) + chr(10) + ficha)})
+
     if hallado["fragmentos"]:
         mensajes.append({
             "role": "system",
@@ -120,13 +134,19 @@ def armar(usuario_id: str, conv: dict, pregunta: str) -> tuple[list[dict], dict]
 
     # El aviso va al final, pegado a la pregunta: un modelo pequeño atiende
     # mucho mejor a lo que tiene cerca del final que a lo que se dijo arriba.
-    muestra = bool(hallado["fragmentos"]) and bool((ENUMERATIVA.search(pregunta) or PIDE_CONJUNTO.search(pregunta)))
+    # Con la ficha de la tabla delante, el aviso de muestra sobra: los datos
+    # SÍ están completos. Dejarlo puesto enseñaría a desconfiar de una
+    # respuesta que esta vez sí es exacta.
+    muestra = (bool(hallado["fragmentos"]) and not ficha
+               and bool(ENUMERATIVA.search(pregunta)
+                        or PIDE_CONJUNTO.search(pregunta)))
     if muestra:
         mensajes.append({"role": "system", "content": AVISO_MUESTRA})
 
     mensajes += _historial(conv["id"])
     mensajes.append({"role": "user", "content": pregunta})
-    return mensajes, {**hallado, "agente": agente, "muestra": muestra}
+    return mensajes, {**hallado, "agente": agente, "muestra": muestra,
+                      "con_tablas": bool(ficha)}
 
 
 def responder(usuario_id: str, conv_id: str, pregunta: str,
@@ -156,7 +176,8 @@ def responder(usuario_id: str, conv_id: str, pregunta: str,
              for f in rastro["fragmentos"]]
     yield {"tipo": "contexto", "citas": citas, "modo": rastro["modo"],
            "criterio": rastro["criterio"], "documentos": rastro["documentos"],
-           "muestra": rastro.get("muestra"), "aviso": rastro["aviso"]}
+           "muestra": rastro.get("muestra"),
+           "con_tablas": rastro.get("con_tablas"), "aviso": rastro["aviso"]}
 
     agente = rastro["agente"]
     modelo = (agente or {}).get("modelo") or ia.MODELO_CHAT

@@ -83,6 +83,37 @@ apunta a decenas de documentos, no a millones, y para ese tamaño la búsqueda
 exacta es más simple, más rápida de operar y no puede equivocarse. El día que
 un agente pase de unos veinte mil fragmentos, el camino es `pgvector`.
 
+## Hojas de cálculo: se calculan, no se muestrean
+
+Un Excel troceado en fragmentos de texto **no se puede consultar**. Preguntado
+por cuántas cuentas tiene un balance de 85, el asistente respondía "3": las
+que salieron en los cuatro fragmentos que vio de unos setecientos. No era
+falta de contexto — contar, listar y sumar son operaciones sobre datos, y un
+modelo que ve una muestra no puede hacerlas por mucho que se le agrande la
+ventana.
+
+Por eso una hoja se guarda **dos veces**: como texto, para poder encontrarla
+por parecido, y como **tabla**, con sus encabezados y todas sus filas. Antes
+de responder, el sistema calcula sobre la tabla completa —cuántas filas hay,
+qué valores distintos tiene cada columna, cuánto suma cada columna numérica—
+y le entrega ese resultado ya hecho al modelo, que solo lo redacta.
+
+Es la misma frontera que rige `analitica-puc`: **el motor calcula, la IA
+escribe**, nunca al revés.
+
+Dos distinciones que el cálculo hace y que importan:
+
+- **Un identificador no se suma.** Un código de cuenta, un NIT o un número de
+  factura son números que no son cantidades; sumarlos da una cifra
+  perfectamente formada y sin ningún significado. Se detectan por el nombre de
+  la columna y, si el encabezado no ayuda, por su forma: dígitos puros, todos
+  del mismo largo y todos distintos es un consecutivo, no una columna de
+  importes.
+- **Un texto con números dentro no es una cifra.** "Cuenta 105" no vale 105.
+
+Si una hoja supera el tope de filas que se guardan, se dice: un conteo sobre
+datos truncados es un piso, no un total.
+
 ## Aislamiento
 
 Cada documento y cada agente tienen dueño. **Nadie ve lo del otro** salvo que
