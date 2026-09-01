@@ -100,6 +100,12 @@ export default function Chat({ agentes, onIrA }) {
   const [enVuelo, setEnVuelo] = useState(null);   // respuesta que se está escribiendo
   const [citasVuelo, setCitasVuelo] = useState([]);
   const [nota, setNota] = useState(null);         // aviso del recuperador
+  // En qué va la respuesta. El servidor avisa cuándo terminó de buscar, así
+  // que no hay que adivinarlo: decirle al usuario "buscando" durante el
+  // minuto que el modelo pasa LEYENDO es señalar el paso equivocado, y la
+  // pantalla parece colgada.
+  const [fase, setFase] = useState(null);         // buscando | leyendo
+  const [seg, setSeg] = useState(0);
   const [texto, setTexto] = useState("");
   const [error, setError] = useState(null);
   const [ocupado, setOcupado] = useState(false);
@@ -112,6 +118,14 @@ export default function Chat({ agentes, onIrA }) {
   }, []);
 
   useEffect(() => { cargarConvs().catch((e) => setError(e.message)); }, [cargarConvs]);
+
+  // Un contador mientras se espera. En CPU la primera palabra puede tardar
+  // un minuto; sin un número que avance, cualquiera concluye que se rompió.
+  useEffect(() => {
+    if (!ocupado) return;
+    const t = setInterval(() => setSeg((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [ocupado]);
 
   // Al final de cada trozo, seguir el hilo hacia abajo.
   useEffect(() => {
@@ -146,6 +160,7 @@ export default function Chat({ agentes, onIrA }) {
 
     setTexto(""); setError(null); setNota(null);
     setCitasVuelo([]); setEnVuelo(""); setOcupado(true);
+    setFase("buscando"); setSeg(0);
     setMensajes((m) => [...m, { id: `local-${Date.now()}`, rol: "usuario",
                                 texto: pregunta, creado_en: new Date().toISOString() }]);
 
@@ -159,6 +174,7 @@ export default function Chat({ agentes, onIrA }) {
           setCitasVuelo(citas);
           setNota({ modo: ev.modo, criterio: ev.criterio,
                     documentos: ev.documentos, aviso: ev.aviso });
+          setFase("leyendo");
         } else if (ev.tipo === "texto") {
           acumulado += ev.texto;
           setEnVuelo(acumulado);
@@ -180,6 +196,7 @@ export default function Chat({ agentes, onIrA }) {
     } finally {
       setEnVuelo(null);
       setOcupado(false);
+      setFase(null);
     }
   }
 
@@ -300,9 +317,19 @@ export default function Chat({ agentes, onIrA }) {
                       <p className="whitespace-pre-wrap escribiendo">
                         <ConCitas texto={enVuelo} citas={citasVuelo} onCita={verCita} />
                       </p>
+                    ) : fase === "buscando" ? (
+                      <p className="text-xs text-tinta-suave">
+                        Buscando en sus documentos… <span className="cifra">{seg}s</span>
+                      </p>
                     ) : (
                       <p className="text-xs text-tinta-suave">
-                        Buscando en sus documentos…
+                        Encontrados <span className="cifra">{citasVuelo.length}</span>{" "}
+                        fragmentos. El modelo los está leyendo…{" "}
+                        <span className="cifra">{seg}s</span>
+                        <span className="mt-1 block text-tinta-suave/70">
+                          Este es el paso lento: en este servidor el modelo lee
+                          el contexto antes de escribir la primera palabra.
+                        </span>
                       </p>
                     )}
                   </div>
